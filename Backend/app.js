@@ -13,6 +13,13 @@ import dispatchRoutes from "./router/dispatch.js";
 import authRouter from "./router/login.js";
 import inventoryRoutes from "./router/inventoryOrder.js";
 import productRouter from './router/productRouter.js';
+
+import notesRouter from './router/notesRouter.js';
+
+
+
+
+
 const app = express();
 const __dirname = path.resolve();
 
@@ -40,6 +47,9 @@ app.use("/api", inventoryRoutes);
 
 // Use the products router
 app.use('/api/products', productRouter);
+
+// Routes
+app.use('/api/notes', notesRouter);
 
 app.use(dispatchRoutes);
 

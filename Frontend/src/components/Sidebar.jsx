@@ -5,14 +5,14 @@ import {
   FiChevronsRight,
   FiHome,
 } from "react-icons/fi";
-import { MdDashboard, MdOutlineInventory } from "react-icons/md";
+import { MdDashboard, MdOutlineInventory , MdInventory2  } from "react-icons/md";
 import { FaBoxOpen } from "react-icons/fa";
 import { CiBoxList } from "react-icons/ci";
 import { SlChemistry } from "react-icons/sl";
 import { GrVirtualMachine } from "react-icons/gr";
 import { SlNotebook } from "react-icons/sl";
-
-import { motion } from "framer-motion";
+import { SiGooglecloudstorage } from "react-icons/si";
+import { SiVault } from "react-icons/si";import { motion } from "framer-motion";
 
 const Sidebar = ({ children, role }) => {
   return (
@@ -44,6 +44,9 @@ const Sidebar2 = ({ role }) => {
         { name: "Add Order", Icon: CiBoxList, path: "/admin/add-order" },
         { name: "Formula Bin", Icon: SlChemistry, path: "/admin/formula-bin" },
         { name: "Production", Icon: GrVirtualMachine, path: "/admin/production" },
+        { name: "Inventory Logging", Icon: SiGooglecloudstorage, path: "/admin/inventorylogging" },
+        { name: "Formula Inventory", Icon: MdInventory2, path: "/admin/formulaInventory" },
+        { name: "Product Bin", Icon: SiVault, path: "/admin/productBin" },
         { name: "NotePad", Icon: SlNotebook, path: "/admin/board" },
       ]
     : [

@@ -1,318 +1,191 @@
-import React, { useState } from "react";
-import { FiPlus, FiTrash } from "react-icons/fi";
-import { motion } from "framer-motion";
-import { FaFire } from "react-icons/fa";
+import React, { useState, useEffect } from 'react';
+import { FaSave, FaEdit, FaTrash } from 'react-icons/fa';  // React Icons for save, edit, delete
+import { motion } from 'framer-motion';  // Framer Motion for animations
 
-export const CustomKanban = () => {
-  return (
-    <div className="min-h-screen w-full bg-white text-gray-900">
-      <Board />
-    </div>
-  );
-};
+function CustomKanban() {
+  const [noteContent, setNoteContent] = useState('');
+  const [notes, setNotes] = useState([]);
+  const [editNote, setEditNote] = useState(null);  // State to manage the note being edited
+  const [newContent, setNewContent] = useState('');
 
-const Board = () => {
-  const [cards, setCards] = useState(DEFAULT_CARDS);
+  // Fetch notes from API on initial load
+  useEffect(() => {
+    fetchNotes();
+  }, []);
 
-  return (
-    <div className="flex flex-wrap justify-center gap-6 p-8">
-      <Column
-        title="Backlog"
-        column="backlog"
-        headingColor="text-gray-600"
-        cards={cards}
-        setCards={setCards}
-      />
-      <Column
-        title="TODO"
-        column="todo"
-        headingColor="text-yellow-500"
-        cards={cards}
-        setCards={setCards}
-      />
-      <Column
-        title="In Progress"
-        column="doing"
-        headingColor="text-blue-500"
-        cards={cards}
-        setCards={setCards}
-      />
-      <Column
-        title="Complete"
-        column="done"
-        headingColor="text-green-500"
-        cards={cards}
-        setCards={setCards}
-      />
-      <BurnBarrel setCards={setCards} />
-    </div>
-  );
-};
-
-const Column = ({ title, headingColor, cards, column, setCards }) => {
-  const [active, setActive] = useState(false);
-
-  const handleDragStart = (e, card) => {
-    e.dataTransfer.setData("cardId", card.id);
-  };
-
-  const handleDragEnd = (e) => {
-    const cardId = e.dataTransfer.getData("cardId");
-
-    setActive(false);
-    clearHighlights();
-
-    const indicators = getIndicators();
-    const { element } = getNearestIndicator(e, indicators);
-
-    const before = element.dataset.before || "-1";
-
-    if (before !== cardId) {
-      let copy = [...cards];
-
-      let cardToTransfer = copy.find((c) => c.id === cardId);
-      if (!cardToTransfer) return;
-      cardToTransfer = { ...cardToTransfer, column };
-
-      copy = copy.filter((c) => c.id !== cardId);
-
-      const moveToBack = before === "-1";
-
-      if (moveToBack) {
-        copy.push(cardToTransfer);
-      } else {
-        const insertAtIndex = copy.findIndex((el) => el.id === before);
-        if (insertAtIndex === undefined) return;
-
-        copy.splice(insertAtIndex, 0, cardToTransfer);
-      }
-
-      setCards(copy);
+  // Fetch notes from API
+  const fetchNotes = async () => {
+    try {
+      const response = await fetch('http://localhost:5001/api/notes');
+      const data = await response.json();
+      setNotes(data);
+    } catch (error) {
+      console.error('Error fetching notes:', error);
     }
   };
 
-  const handleDragOver = (e) => {
-    e.preventDefault();
-    highlightIndicator(e);
-
-    setActive(true);
-  };
-
-  const clearHighlights = (els) => {
-    const indicators = els || getIndicators();
-
-    indicators.forEach((i) => {
-      i.style.opacity = "0";
-    });
-  };
-
-  const highlightIndicator = (e) => {
-    const indicators = getIndicators();
-
-    clearHighlights(indicators);
-
-    const el = getNearestIndicator(e, indicators);
-
-    el.element.style.opacity = "1";
-  };
-
-  const getNearestIndicator = (e, indicators) => {
-    const DISTANCE_OFFSET = 50;
-
-    const el = indicators.reduce(
-      (closest, child) => {
-        const box = child.getBoundingClientRect();
-
-        const offset = e.clientY - (box.top + DISTANCE_OFFSET);
-
-        if (offset < 0 && offset > closest.offset) {
-          return { offset: offset, element: child };
-        } else {
-          return closest;
-        }
-      },
-      {
-        offset: Number.NEGATIVE_INFINITY,
-        element: indicators[indicators.length - 1],
+  // Add a new note (sending to backend)
+  const addNote = async () => {
+    if (noteContent.trim()) {
+      const newNote = { content: noteContent };
+      try {
+        const response = await fetch('http://localhost:5001/api/notes', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(newNote),
+        });
+        const data = await response.json();
+        setNotes([...notes, data]);
+        setNoteContent('');
+      } catch (error) {
+        console.error('Error saving note:', error);
       }
-    );
-
-    return el;
+    }
   };
 
-  const getIndicators = () => {
-    return Array.from(document.querySelectorAll(`[data-column="${column}"]`));
+  // Delete note (sending to backend)
+  const deleteNote = async (id) => {
+    try {
+      await fetch(`http://localhost:5001/api/notes/${id}`, { method: 'DELETE' });
+      setNotes(notes.filter((note) => note._id !== id)); // Using _id from MongoDB
+    } catch (error) {
+      console.error('Error deleting note:', error);
+    }
   };
 
-  const handleDragLeave = () => {
-    clearHighlights();
-    setActive(false);
+  // Update note (sending to backend)
+  const updateNote = async () => {
+    if (newContent.trim()) {
+      try {
+        const response = await fetch(`http://localhost:5001/api/notes/${editNote._id}`, {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ content: newContent }),
+        });
+        const updatedNote = await response.json();
+        setNotes(notes.map((note) => (note._id === updatedNote._id ? updatedNote : note)));
+        setEditNote(null); // Close the modal
+        setNewContent('');
+      } catch (error) {
+        console.error('Error updating note:', error);
+      }
+    }
   };
 
-  const filteredCards = cards.filter((c) => c.column === column);
+  // Handle modal close
+  const closeModal = () => {
+    setEditNote(null);
+    setNewContent('');
+  };
 
   return (
-    <div className="w-72 p-4 bg-white rounded-lg shadow-lg">
-      <div className="mb-3 flex items-center justify-between">
-        <h3 className={`font-semibold ${headingColor}`}>{title}</h3>
-        <span className="rounded text-sm text-gray-400">
-          {filteredCards.length}
-        </span>
-      </div>
-      <div
-        onDrop={handleDragEnd}
-        onDragOver={handleDragOver}
-        onDragLeave={handleDragLeave}
-        className={`h-full w-full rounded-lg transition-colors ${
-          active ? "bg-gray-100" : "bg-transparent"
-        }`}
+    <div className="min-h-screen bg-gray-50 p-6 flex flex-col items-center font-sans">
+      {/* Header */}
+      <motion.header
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        transition={{ duration: 1 }}
+        className="text-center mb-8 w-full"
       >
-        {filteredCards.map((c) => {
-          return <Card key={c.id} {...c} handleDragStart={handleDragStart} />;
-        })}
-        <DropIndicator beforeId={null} column={column} />
-        <AddCard column={column} setCards={setCards} />
-      </div>
-    </div>
-  );
-};
+        <h1 className="text-4xl font-extrabold text-indigo-600">Elastomech Notepad</h1>
+        <p className="text-lg text-gray-600 mt-2">Efficiently manage your notes and ideas</p>
+      </motion.header>
 
-const Card = ({ title, id, column, handleDragStart }) => {
-  return (
-    <>
-      <DropIndicator beforeId={id} column={column} />
+      {/* Notepad Section */}
       <motion.div
-        layout
-        layoutId={id}
-        draggable="true"
-        onDragStart={(e) => handleDragStart(e, { title, id, column })}
-        className="cursor-grab rounded border border-gray-300 bg-white p-4 mb-2 shadow-sm active:cursor-grabbing"
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        transition={{ duration: 1 }}
+        className="w-full max-w-lg p-8 bg-white shadow-xl rounded-xl mb-8 border border-indigo-300"
       >
-        <p className="text-sm text-gray-800">{title}</p>
+        <textarea
+          value={noteContent}
+          onChange={(e) => setNoteContent(e.target.value)}
+          className="w-full h-40 p-4 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:outline-none mb-4"
+          placeholder="Write your note here..."
+        />
+        <button
+          onClick={addNote}
+          className="w-full px-6 py-3 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-all duration-300 ease-in-out"
+        >
+          <FaSave className="mr-3 inline-block" /> Save Note
+        </button>
       </motion.div>
-    </>
-  );
-};
 
-const DropIndicator = ({ beforeId, column }) => {
-  return (
-    <div
-      data-before={beforeId || "-1"}
-      data-column={column}
-      className="my-1 h-0.5 w-full bg-blue-300 opacity-0"
-    />
-  );
-};
+      {/* Notes Table */}
+      <motion.div
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        transition={{ duration: 1 }}
+        className="w-full max-w-3xl p-6 bg-white shadow-xl rounded-xl border border-indigo-300"
+      >
+        <h2 className="text-2xl font-semibold mb-4 text-gray-800">Saved Notes</h2>
+        <table className="min-w-full table-auto text-left border-separate border-spacing-2">
+          <thead>
+            <tr className="bg-indigo-100 text-indigo-600">
+              <th className="py-3 px-4 text-lg font-medium">#</th>
+              <th className="py-3 px-4 text-lg font-medium">Content</th>
+              <th className="py-3 px-4 text-lg font-medium">Actions</th>
+            </tr>
+          </thead>
+          <tbody>
+            {notes.map((note, index) => (
+              <tr key={note._id} className="bg-gray-50 hover:bg-indigo-50 transition-colors duration-200">
+                <td className="py-3 px-4">{index + 1}</td>
+                <td className="py-3 px-4">{note.content}</td>
+                <td className="py-3 px-4 flex space-x-4 justify-center">
+                  <button
+                    onClick={() => deleteNote(note._id)} // Using _id from MongoDB
+                    className="text-red-600 hover:text-red-800 transition-all duration-200 p-2 rounded-lg"
+                  >
+                    <FaTrash />
+                  </button>
+                  <button
+                    onClick={() => {
+                      setEditNote(note);  // Open the modal with the note to be edited
+                      setNewContent(note.content);
+                    }}
+                    className="text-blue-600 hover:text-blue-800 transition-all duration-200 p-2 rounded-lg"
+                  >
+                    <FaEdit />
+                  </button>
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </motion.div>
 
-const BurnBarrel = ({ setCards }) => {
-  const [active, setActive] = useState(false);
-
-  const handleDragOver = (e) => {
-    e.preventDefault();
-    setActive(true);
-  };
-
-  const handleDragLeave = () => {
-    setActive(false);
-  };
-
-  const handleDragEnd = (e) => {
-    const cardId = e.dataTransfer.getData("cardId");
-
-    setCards((pv) => pv.filter((c) => c.id !== cardId));
-
-    setActive(false);
-  };
-
-  return (
-    <div
-      onDrop={handleDragEnd}
-      onDragOver={handleDragOver}
-      onDragLeave={handleDragLeave}
-      className={`mt-8 grid h-48 w-48 shrink-0 place-content-center rounded-lg border text-3xl ${
-        active
-          ? "border-red-500 bg-red-100 text-red-500"
-          : "border-gray-300 bg-gray-100 text-gray-500"
-      }`}
-    >
-      {active ? (
-        <FaFire className="animate-bounce" />
-      ) : (
-        <FiTrash className="text-3xl" />
+      {/* Modal for Editing */}
+      {editNote && (
+        <div className="fixed inset-0 flex justify-center items-center bg-black bg-opacity-50">
+          <div className="bg-white p-6 rounded-lg shadow-lg w-1/2">
+            <h2 className="text-2xl font-semibold text-gray-800 mb-4">Edit Note</h2>
+            <textarea
+              value={newContent}
+              onChange={(e) => setNewContent(e.target.value)}
+              className="w-full h-32 p-4 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:outline-none mb-4"
+              placeholder="Edit your note..."
+            />
+            <div className="flex justify-end space-x-4">
+              <button
+                onClick={closeModal}
+                className="px-6 py-2 bg-gray-300 text-gray-700 rounded-lg hover:bg-gray-400 transition-all duration-300"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={updateNote}
+                className="px-6 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-all duration-300"
+              >
+                Save Changes
+              </button>
+            </div>
+          </div>
+        </div>
       )}
     </div>
   );
-};
+}
 
-const AddCard = ({ column, setCards }) => {
-  const [text, setText] = useState("");
-  const [adding, setAdding] = useState(false);
-
-  const handleSubmit = (e) => {
-    e.preventDefault();
-
-    if (!text.trim().length) return;
-
-    const newCard = {
-      column,
-      title: text.trim(),
-      id: Math.random().toString(),
-    };
-
-    setCards((pv) => [...pv, newCard]);
-
-    setAdding(false);
-  };
-
-  return (
-    <>
-      {adding ? (
-        <motion.form layout onSubmit={handleSubmit}>
-          <textarea
-            onChange={(e) => setText(e.target.value)}
-            autoFocus
-            placeholder="Add new task..."
-            className="w-full rounded-lg border border-blue-400 bg-blue-100/50 p-4 text-sm text-gray-800 placeholder-blue-300 focus:outline-none"
-          />
-          <div className="mt-2 flex items-center justify-end gap-2">
-            <button
-              onClick={() => setAdding(false)}
-              className="px-4 py-2 text-sm text-gray-400 hover:text-gray-700"
-            >
-              Close
-            </button>
-            <button
-              type="submit"
-              className="flex items-center gap-2 rounded-lg bg-blue-500 px-4 py-2 text-sm text-white hover:bg-blue-400"
-            >
-              <span>Add</span>
-              <FiPlus />
-            </button>
-          </div>
-        </motion.form>
-      ) : (
-        <motion.button
-          layout
-          onClick={() => setAdding(true)}
-          className="flex w-full items-center gap-2 px-4 py-2 text-sm text-gray-500 hover:text-gray-700"
-        >
-          <span>Add card</span>
-          <FiPlus />
-        </motion.button>
-      )}
-    </>
-  );
-};
-
-const DEFAULT_CARDS = [
-  { title: "Look into render bug in dashboard", id: "1", column: "backlog" },
-  { title: "SOX compliance checklist", id: "2", column: "backlog" },
-  { title: "[SPIKE] Migrate to Azure", id: "3", column: "backlog" },
-  { title: "Document Notifications service", id: "4", column: "backlog" },
-  { title: "Research DB options for new microservice", id: "5", column: "todo" },
-  { title: "Postmortem for outage", id: "6", column: "todo" },
-  { title: "Sync with product on Q3 roadmap", id: "7", column: "todo" },
-  { title: "Refactor context providers to use Zustand", id: "8", column: "doing" },
-  { title: "Add logging to daily CRON", id: "9", column: "doing" },
-  { title: "Set up DD dashboards for Lambda listener", id: "10", column: "done" },
-];
+export default CustomKanban;

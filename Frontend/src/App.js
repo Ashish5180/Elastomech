@@ -19,7 +19,7 @@ import Navbar from "./components/Navbar"; // Import Navbar
 import Production from "./pages/Admin/Production";
 import Dispatch from "./pages/Admin/Dispatch";
 import "./App.css";
-import { CustomKanban } from "./pages/Admin/Kanboard";
+import  CustomKanban  from "./pages/Admin/Kanboard";
 import InventoryLogging from "./pages/Admin/InventoryLogging";
 import FormulaInventory from "./pages/Admin/FormulaInventory";
 import ProductBin from "./pages/Admin/ProductBin";
